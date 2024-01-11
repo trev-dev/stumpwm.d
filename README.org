@@ -1,0 +1,41 @@
+* A Stumpwm Config
+Stumpwm is a fun little window manager.  Setting this up has taught me some things about Common Lisp that I would not have learned otherwise.
+
+*Note:* This would be a lot easier on a standard FSH distribution.  I chose NixOS, so more hacking is needed than usual to get this shit working.
+
+** Dependencies in Stumpwm
+For the most part the dependencies need to be present and a part of whatever SBCL implementation I'm using.
+
+Dependencies that use cffi (foreign interfaces for C dynamic ibraries) expect the FHS to be intact.  To get lisp packages that use cffi to work on Nix/Guix, they need to be installed by Nix/Guix.
+
+#+begin_src nix
+sbcl-bundle = pkgs.sbcl.withPackages (p: [
+  p.alexandria
+  p.clx
+  p.clx-truetype
+  p.cl-ppcre
+  p.stumpwm
+  p.dbus
+  p.xml-emitter
+  p.zpng
+]);
+
+home.packages = with pkgs; [
+  libfixposix
+  rlwrap
+  sbcl-bundle
+];
+#+end_src
+
+Otherwise, dependencies can mostly be installed via [[https://quicklisp.org][Quicklisp]].  In the case of Slynk (a way to interface with my stumpwm runtime from Emacs), I had to install it with Quicklisp due to the fact that Slynk can't handle being on an immutible filesystem such as NixOS to make a connection.
+
+So from a repl, I needed to do something like:
+
+#+begin_src lisp
+(ql:quickload :slynk)
+#+end_src
+
+Once all of my desired dependencies were installed, I could then build Stumpwm by following the directions in their git repository.
+
+Every time I added a new dependency for some extension/module, I have to go back to my local copy of the repo and ~make clean && make && make install~.  For simplicity's sake, I modified the makefile to point my installation at =~/.local/bin/stumpwm=.  I could then restart stumpwm and enjoy the changes.
+
