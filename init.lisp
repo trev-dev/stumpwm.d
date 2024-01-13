@@ -1,9 +1,11 @@
 (init-load-path (merge-pathnames *data-dir* "contrib"))
 (in-package :stumpwm)
-(load-module :screenshot)
 
+(load-module :screenshot)
+(load-module :pass)
 (set-prefix-key (kbd "s-p"))
 
+
 ;;; Theme
 (setf *colors*
       '("#191919"   ;black
@@ -24,8 +26,10 @@
       *mode-line-foreground-color* (car (last *colors*))
       *ignore-wm-inc-hints* t)
 
+
+;;; Commands
 (defcommand kitty () ()
-            (run-shell-command "kitty"))
+  (run-shell-command "kitty"))
 
 (defcommand firefox () ()
             (run-shell-command "firefox"))
@@ -55,9 +59,33 @@
 (define-key *root-map* (kbd "C-l") "xsecurelock")
 (define-key *root-map* (kbd "b") "firefox")
 
-(setf *time-modeline-string* "%a, %b %d %H:%M")
-(setf *screen-mode-line-format* "[%n] %W ^> %d")
+
+;;; Modeline
+(load-module :battery-portable)
+(load-module :cpu)
+(load-module :mem)
+(load-module :wifi)
 
+(defun files-in-dir (path)
+  (let ((dir (probe-file path)))
+    (when (uiop:directory-exists-p dir)
+      (uiop:directory-files dir))))
+
+(defun executables ()
+  (let* ((paths (uiop:split-string (uiop:getenv "PATH") :separator ":")))
+    (apply 'append (remove nil (map 'list 'files-in-dir paths)))))
+
+(defun find-executable (name)
+  (find name (executables)
+        :test #'equalp
+        :key #'pathname-name))
+
+(setf wifi:*iwconfig-path* (find-executable "iwconfig"))
+(setf cpu::*cpu-modeline-fmt* "%c %t")
+(setf mem::*mem-modeline-fmt* "MEM: %p")
+(setf *time-modeline-string* "^B^2%a, ^5^B%b %d^3 %H:%M")
+(setf *screen-mode-line-format* "^6^B[%n] %W ^> %C | %M | %I | %B | %d")
+
 ;; Monitor backlight
 (let ((bdown   "exec light -U 5")
       (bup     "exec light -A 5")
@@ -67,6 +95,7 @@
   (define-key m (kbd "s-C-d")                 bup)
   (define-key m (kbd "XF86MonBrightnessUp")   bup))
 
+
 ;; Slynk for emacs/repl support
 (asdf:load-system :slynk)
 
@@ -79,14 +108,14 @@
 (defcommand slynk-restart () ()
   (slynk:restart-server :port 4008))
 
-; (asdf:load-system :pamixer)
+(load-module :pamixer)
 
-; (define-key *top-map* (kbd "XF86AudioRaiseVolume") "pamixer-volume-up")
-; (define-key *top-map* (kbd "XF86AudioLowerVolume") "pamixer-volume-down")
-; (define-key *top-map* (kbd "XF86AudioMute") "pamixer-toggle-mute")
+(define-key *top-map* (kbd "XF86AudioRaiseVolume") "pamixer-volume-up")
+(define-key *top-map* (kbd "XF86AudioLowerVolume") "pamixer-volume-down")
+(define-key *top-map* (kbd "XF86AudioMute") "pamixer-toggle-mute")
 
-;; Auto starts
-
+
+;;; Auto starts
 (load-module :notify)
 (setf notify:*notify-server-title-color* "^B^3")
 (setf notify:*notify-server-body-color* "^7*")
