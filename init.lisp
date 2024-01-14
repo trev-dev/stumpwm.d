@@ -1,4 +1,13 @@
 (init-load-path (merge-pathnames *data-dir* "contrib"))
+
+;;; Overcome challenges with clx-truetype not being built by my user.
+(asdf:load-system :clx-truetype)
+(in-package :xft)
+(defparameter +font-cache-filename+
+  #.(merge-pathnames "font-cache.sexp"
+                     (merge-pathnames ".local/share/fonts"
+                                      (user-homedir-pathname))))
+;;; Stumpwm
 (in-package :stumpwm)
 
 (load-module :screenshot)
@@ -25,6 +34,29 @@
       *mode-line-background-color* (car *colors*)
       *mode-line-foreground-color* (car (last *colors*))
       *ignore-wm-inc-hints* t)
+
+(when *initializing*
+  (grename "main")
+  (gnewbg "alt"))
+
+
+;;; Font
+(defvar extra-font-dirs (list (concat (getenv "HOME")
+                                      "/.local/share/fonts/")
+                              (concat (getenv "HOME")
+                                      "/.nix-profile/share/fonts/")))
+(setf xft:*font-dirs* (append xft:*font-dirs* extra-font-dirs))
+
+(if (not (find "FiraCode Nerd Font Mono" (xft:get-font-families)
+               :test #'equal))
+    (xft:cache-fonts))
+
+(load-module :ttf-fonts)
+(set-font
+ (list
+  (make-instance 'xft:font
+                 :family "FiraCode Nerd Font"
+                 :subfamily "Regular" :size 11)))
 
 
 ;;; Commands
@@ -59,6 +91,10 @@
 (define-key *root-map* (kbd "C-l") "xsecurelock")
 (define-key *root-map* (kbd "b") "firefox")
 
+(load-module :mpd)
+(setf mpd:*mpd-modeline-fmt* "^B^2%S^4 ^1%a ^7- ^6%t^* %e/%l")
+(mpd:mpd-connect)
+
 
 ;;; Modeline
 (load-module :battery-portable)
@@ -84,7 +120,8 @@
 (setf cpu::*cpu-modeline-fmt* "%c %t")
 (setf mem::*mem-modeline-fmt* "MEM: %p")
 (setf *time-modeline-string* "^B^2%a, ^5^B%b %d^3 %H:%M")
-(setf *screen-mode-line-format* "^6^B[%n] %W ^> %C | %M | %I | %B | %d")
+(setf *screen-mode-line-format* "^6^B[%n] %W ^> %m | %C | %M | %I | %B | %d")
+
 
 ;; Monitor backlight
 (let ((bdown   "exec light -U 5")
